@@ -18,3 +18,223 @@ ratings = pd.read_csv('F://ratings.csv')
 movies.head()
 #Let's see what features that ratings contain
 ratings.head()
+  # Creat a Function to get the genre ratings
+def get_genre_ratings(ratings, movies, genres, column_names):
+    genre_ratings = pd.DataFrame()
+    for genre in genres:        
+        genre_movies = movies[movies['genres'].str.contains(genre) ]
+        avg_genre_votes_per_user = ratings[ratings['movieId'].isin(genre_movies['movieId'])].loc[:, ['userId', 'rating']].groupby(['userId'])['rating'].mean().round(2)
+        
+        genre_ratings = pd.concat([genre_ratings, avg_genre_votes_per_user], axis=1)
+        
+    genre_ratings.columns = column_names
+    return genre_ratings
+    
+#Now we want to calculate the average rating of romance and scifi movies for having better visualization
+genre_ratings = get_genre_ratings(ratings, movies, ['Romance', 'Sci-Fi'], ['avg_romance_rating', 'avg_scifi_rating'])
+genre_ratings.head()
+# Defining the scatterplot drawing function
+def draw_scatterplot(x_data, x_label, y_data, y_label, fontsize = 10):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel(x_label,  fontsize = 20)
+    ax.set_ylabel(y_label,  fontsize = 20)
+    ax.scatter(x_data, y_data, s=50, color='darkblue')
+    draw_scatterplot(genre_ratings['avg_scifi_rating'],'Avg Sci-Fi Ratings', genre_ratings['avg_romance_rating'], 'Avg Romance Ratings')
+plt.savefig("High resoltion.png",dpi=300)
+
+# Function to get the biased dataset
+def bias_genre_rating_dataset(genre_ratings, score_limit_1, score_limit_2):
+    biased_dataset =    genre_ratings[((genre_ratings['avg_romance_rating'] < score_limit_1 - 0.2) & (genre_ratings['avg_scifi_rating'] > score_limit_2)) | ((genre_ratings['avg_scifi_rating'] < score_limit_1) & (genre_ratings['avg_romance_rating'] > score_limit_2))]
+    biased_dataset = pd.concat([biased_dataset[:300], genre_ratings[:2]])
+    biased_dataset = pd.DataFrame(biased_dataset.to_records())
+    return biased_dataset
+# Bias the dataset
+biased_dataset = bias_genre_rating_dataset(genre_ratings, 3.2, 2.5)
+print( "Number of records: ", len(biased_dataset))
+biased_dataset.head()
+
+# Defining the scatterplot drawing function
+def draw_scatterplot(x_data, x_label, y_data, y_label):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel(x_label,  fontsize = 20)
+    ax.set_ylabel(y_label,   fontsize = 20)
+    ax.scatter(x_data, y_data, s=50, color='darkblue')
+    # Plot the scatterplot
+draw_scatterplot(biased_dataset['avg_scifi_rating'],'Avg Sci-Fi Ratings', biased_dataset['avg_romance_rating'], 'Avg Romance Ratings')
+plt.savefig("High resoltion.png",dpi=300)
+# KMeans Algorithm
+# we should turn dataset into a list
+X = biased_dataset[['avg_scifi_rating','avg_romance_rating']].values
+# Now Import KMeans Algorithm
+from sklearn.cluster import KMeans
+# find two clusters of KMeans
+kmeans_1 = KMeans(n_clusters=2)
+# Use fit_predict to cluster the dataset
+predictions = kmeans_1.fit_predict(X)
+# Defining the cluster plotting function
+def draw_clusters(biased_dataset, predictions,size=(100,100), cmap='viridis'):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    plt.margins(0.05)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    clustered = pd.concat([biased_dataset.reset_index(), pd.DataFrame({'group':predictions})], axis=1)
+    plt.scatter(clustered['avg_scifi_rating'], clustered['avg_romance_rating'], c=clustered['group'] , s=50)
+# Drawing a Plot for clusters
+draw_clusters(biased_dataset, predictions)
+#scifi=yellow
+#romance=purple
+# People that averaged a rating on romance movies of 3 or higher will belong to one group, and people who averaged a rating of less than 3 will belong to the other.
+plt.savefig("High resoltion.png",dpi=300)
+# Create an instance of KMeans to find three clusters
+kmeans_2 = KMeans(n_clusters=3)
+predictions_2 = kmeans_2.fit_predict(X)
+# Defining the cluster plotting function
+
+def draw_clusters(biased_dataset, predictions_2, cmap='viridis'):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    centroids = kmeans_2.cluster_centers_
+    clustered = pd.concat([biased_dataset.reset_index(), pd.DataFrame({'group':predictions_2})], axis=1)
+    plt.scatter(clustered['avg_scifi_rating'], clustered['avg_romance_rating'], c=clustered['group'], s=50) #marker='x'
+
+draw_clusters(biased_dataset, predictions_2)
+plt.savefig("High resoltion.png",dpi=300)
+#People who like scie-fi and romance belong to the green group.
+#People who like scifi but not romance belong to the yellow group.
+#People who like romance but not sci-fi belong to the purple group.
+
+# find three clusters
+kmeans_3 = KMeans(n_clusters=4)
+predictions_3 = kmeans_3.fit_predict(X)
+# Defining the cluster plotting function
+def draw_clusters(biased_dataset, predictions_3, cmap='viridis'):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    clustered = pd.concat([biased_dataset.reset_index(), pd.DataFrame({'group':predictions_3})], axis=1)
+    plt.scatter(clustered['avg_scifi_rating'], clustered['avg_romance_rating'], c=clustered['group'], s=60)
+
+draw_clusters(biased_dataset, predictions_3)
+plt.savefig("High resoltion.png",dpi=300)
+# Defining the cluster plotting function
+def draw_clusters(biased_dataset, predictions_4, cmap='viridis'):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    clustered = pd.concat([biased_dataset.reset_index(), pd.DataFrame({'group':predictions_4})], axis=1)
+    plt.scatter(clustered['avg_scifi_rating'], clustered['avg_romance_rating'], c=clustered['group'], s=60)
+draw_clusters(biased_dataset, predictions_4)
+plt.savefig("High resoltion.png",dpi=300)
+
+df = biased_dataset[['avg_scifi_rating','avg_romance_rating']]
+# Choose the range of k values to test.
+# We added a stride of 5 to improve performance. We don't need to calculate the error for every k value
+possible_k_values = range(2, len(X)+1, 5)
+# Define function to calculate the clustering errors
+def clustering_errors(k, biased_dataset):
+    kmeans = KMeans(n_clusters=k).fit(biased_dataset)
+    predictions = kmeans.predict(biased_dataset)
+    silhouette_avg = silhouette_score(biased_dataset, predictions)
+    return silhouette_avg
+	# Calculate error values for all k values we're interested in
+errors_per_k = [clustering_errors(k, X) for k in possible_k_values]
+# Plot the each value of K vs. the silhouette score at that value
+fig, ax = plt.subplots(figsize=(20, 10))
+ax.set_xlabel('Number of Clusters', fontsize = 25)
+ax.set_ylabel('Silhouette Score', fontsize = 25)
+plt.plot(possible_k_values, errors_per_k)
+# Ticks and grid, savefig
+xticks = np.arange(min(possible_k_values), max(possible_k_values)+1, 5.0)
+ax.set_xticks(xticks, minor=False)
+ax.set_xticks(xticks, minor=True)
+ax.xaxis.grid(True, which='both')
+yticks = np.arange(round(min(errors_per_k), 2), max(errors_per_k), .05)
+ax.set_yticks(yticks, minor=False)
+ax.set_yticks(yticks, minor=True)
+ax.yaxis.grid(True, which='both')
+plt.savefig("High resoltion.png")
+list(zip(possible_k_values, errors_per_k))
+# find 12 clusters
+kmeans_5 = KMeans(n_clusters=12)
+predictions_5 = kmeans_5.fit_predict(X)
+# Defining the cluster plotting function
+def draw_clusters(biased_dataset, predictions_5, cmap='viridis'):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    clustered = pd.concat([biased_dataset.reset_index(), pd.DataFrame({'group':predictions_5})], axis=1)
+    plt.scatter(clustered['avg_scifi_rating'], clustered['avg_romance_rating'], c=clustered['group'], s=60)
+
+draw_clusters(biased_dataset, predictions_5)
+plt.savefig("High resoltion.png")
+print(kmeans_4.inertia_)
+inertia_list = []
+for k in np.arange(1, 12):
+    kmeans_4 = KMeans(n_clusters=k)
+    kmeans_4.fit(biased_dataset)
+    inertia_list.append(kmeans_4.inertia_)
+inertia_list
+# Select our biased dataset and add adventure genre
+biased_dataset_3_genres = get_genre_ratings(ratings, movies, ['Romance','Sci-Fi', 'Adventure'],                                          
+['avg_romance_rating', 'avg_scifi_rating', 'avg_adventure_rating'])
+# Drop null values
+biased_dataset_3_genres = bias_genre_rating_dataset(biased_dataset_3_genres, 3.2, 2.5).dropna()
+print( "Number of records: ", len(biased_dataset_3_genres))
+biased_dataset_3_genres.head()
+# Define 3d plotting function
+def draw_clusters_3d(biased_dataset_3_genres, predictions):
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg Sci-Fi Rating', fontsize = 20)
+    ax.set_ylabel('Avg Romance Rating', fontsize = 20)
+    clustered = pd.concat([biased_dataset_3_genres.reset_index(), pd.DataFrame({'group':predictions})], axis=1)
+    colors = itertools.cycle(plt.rcParams["axes.prop_cycle"].by_key()["color"])
+    for g in clustered.group.unique():
+        color = next(colors)
+        for index, point in clustered[clustered.group == g].iterrows():
+            if point['avg_adventure_rating'].astype(float) > 3: 
+                size = 90
+            else:
+                size = 50
+            plt.scatter(point['avg_scifi_rating'], point['avg_romance_rating'], s=size, color=color)
+
+draw_clusters_3d(biased_dataset_3_genres, predictions_5)
+#getting Elbow measure and plot for KMeans
+wscc = []
+K = range(1,10)
+for k in K:
+    kmeanModel =KMeans(n_clusters=k)
+    kmeanModel.fit(biased_dataset)
+    wscc.append(kmeanModel.inertia_)
+plt.plot(wscc,range(1,10),marker="*",c="red")
+plt.title("Elbow Plot for K-Means", fontsize = 17)
+plt.xlabel('Score', fontsize = 16)
+plt.ylabel('Number of Clusters ', fontsize = 16)
+plt.savefig("High resoltion.png")
+print('Acuracy:', df)
+
+    
